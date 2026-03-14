@@ -1,0 +1,78 @@
+// Cost Allocation Manager – DBML Schema
+// Generated from app.py (Flask-SQLAlchemy models)
+
+Table departments {
+  id            integer  [pk, increment]
+  name          varchar(120) [not null, unique]
+}
+
+Table gl_accounts {
+  id            integer  [pk, increment]
+  department_id integer  [not null, ref: > departments.id]
+  account_number varchar(50) [not null]
+  description   varchar(200)
+}
+
+Table dept_charge_definitions {
+  id            integer  [pk, increment]
+  department_id integer  [not null, ref: > departments.id]
+  name          varchar(120) [not null]
+  total_percent float    [default: 0.0]
+  is_active     boolean  [default: false]
+
+  Note: 'is_active becomes true when total_percent == 100%'
+}
+
+Table dept_charge_def_lines {
+  id            integer  [pk, increment]
+  definition_id integer  [not null, ref: > dept_charge_definitions.id]
+  gl_account_id integer  [not null, ref: > gl_accounts.id]
+  percent       float    [not null]
+}
+
+Table project_funding_definitions {
+  id            integer  [pk, increment]
+  name          varchar(120) [not null, unique]
+  total_percent float    [default: 0.0]
+  is_active     boolean  [default: false]
+
+  Note: 'is_active becomes true when total_percent == 100%'
+}
+
+Table project_funding_lines {
+  id                    integer  [pk, increment]
+  funding_definition_id integer  [not null, ref: > project_funding_definitions.id]
+  department_id         integer  [not null, ref: > departments.id]
+  charge_definition_id  integer  [not null, ref: > dept_charge_definitions.id]
+  percent               float    [not null]
+}
+
+Table projects {
+  id                    integer  [pk, increment]
+  name                  varchar(120) [not null, unique]
+  funding_definition_id integer  [ref: > project_funding_definitions.id]
+}
+
+Table charges {
+  id          integer  [pk, increment]
+  project_id  integer  [not null, ref: > projects.id]
+  description varchar(200)
+  amount      float    [not null]
+}
+
+Table charge_dept_allocations {
+  id                   integer  [pk, increment]
+  charge_id            integer  [not null, ref: > charges.id]
+  department_id        integer  [not null, ref: > departments.id]
+  charge_definition_id integer  [not null, ref: > dept_charge_definitions.id]
+  percent              float    [not null]
+  amount               float    [not null]
+}
+
+Table charge_gl_allocations {
+  id                integer  [pk, increment]
+  dept_allocation_id integer [not null, ref: > charge_dept_allocations.id]
+  gl_account_id     integer  [not null, ref: > gl_accounts.id]
+  percent           float    [not null]
+  amount            float    [not null]
+}

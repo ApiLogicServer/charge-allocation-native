@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Cost Allocation Manager</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f0f2f5;
+      --card: #ffffff;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+      --success: #16a34a;
+      --warn: #d97706;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --radius: 8px;
+      --shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.06);
+    }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+    header { background: var(--primary); color: #fff; padding: 14px 28px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(79,70,229,.35); }
+    header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -.01em; }
+    nav { display: flex; gap: 4px; flex-wrap: wrap; padding: 0 16px; background: #fff; border-bottom: 1px solid var(--border); }
+    nav button { padding: 12px 18px; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: .875rem; font-weight: 500; color: var(--muted); transition: color .15s, border-color .15s; }
+    nav button:hover { color: var(--primary); }
+    nav button.active { color: var(--primary); border-bottom-color: var(--primary); }
+    main { padding: 28px; max-width: 1200px; margin: 0 auto; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* Cards */
+    .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; margin-bottom: 24px; }
+    .card h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+    /* Forms */
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px; }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: .78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .field input, .field select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: .9rem; outline: none; transition: border-color .15s; background: #fff; }
+    .field input:focus, .field select:focus { border-color: var(--primary); }
+    .field input[type=number] { width: 120px; }
+
+    /* Buttons */
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: .875rem; font-weight: 600; transition: background .15s, transform .1s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: var(--danger-hover); }
+    .btn-sm { padding: 4px 10px; font-size: .8rem; }
+    .btn-ghost { background: none; border: 1px solid var(--border); color: var(--text); }
+    .btn-ghost:hover { background: var(--bg); }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    thead tr { background: var(--bg); }
+    th { text-align: left; padding: 8px 12px; font-size: .75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; border-bottom: 2px solid var(--border); }
+    td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+    .empty { text-align: center; color: var(--muted); padding: 32px; font-size: .9rem; }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .72rem; font-weight: 700; letter-spacing: .04em; }
+    .badge-green { background: #dcfce7; color: var(--success); }
+    .badge-yellow { background: #fef9c3; color: var(--warn); }
+    .badge-red { background: #fee2e2; color: var(--danger); }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 10px; padding: 28px; width: 100%; max-width: 560px; box-shadow: 0 20px 60px rgba(0,0,0,.25); position: relative; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 20px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    .close-btn { position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--muted); line-height: 1; }
+
+    /* Allocation detail */
+    .alloc-dept { border-left: 3px solid var(--primary); margin-bottom: 14px; padding-left: 12px; }
+    .alloc-dept-header { font-weight: 600; font-size: .9rem; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .alloc-gl { margin-left: 16px; font-size: .82rem; display: flex; justify-content: space-between; padding: 2px 0; color: var(--muted); }
+
+    /* Section split */
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 700px) { .split { grid-template-columns: 1fr; } nav button { padding: 10px 10px; font-size: .8rem; } }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: #1e293b; color: #fff; border-radius: 8px; font-size: .875rem; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 9999; max-width: 360px; }
+    #toast.show { opacity: 1; }
+    #toast.error { background: var(--danger); }
+
+    .separator { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+    .info-row { display: flex; gap: 16px; margin-bottom: 8px; font-size: .85rem; flex-wrap: wrap; }
+    .info-label { font-weight: 600; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+  <h1>Cost Allocation Manager</h1>
+</header>
+
+<nav>
+  <button class="active" onclick="showPage('departments')">Departments</button>
+  <button onclick="showPage('gl_accounts')">GL Accounts</button>
+  <button onclick="showPage('charge_definitions')">Charge Definitions</button>
+  <button onclick="showPage('funding_definitions')">Funding Definitions</button>
+  <button onclick="showPage('projects')">Projects</button>
+  <button onclick="showPage('charges')">Charges</button>
+</nav>
+
+<main>
+
+  <!-- ===================== DEPARTMENTS ===================== -->
+  <div class="page active" id="page-departments">
+    <div class="card">
+      <h2>Departments</h2>
+      <div class="form-row">
+        <div class="field">
+          <label>Department Name</label>
+          <input type="text" id="dept-name" placeholder="e.g. Finance" style="width:280px"/>
+        </div>
+        <button class="btn btn-primary" onclick="createDept()">+ Add Department</button>
+      </div>
+      <table id="dept-table">
+        <thead><tr><th>ID</th><th>Name</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===================== GL ACCOUNTS ===================== -->
+  <div class="page" id="page-gl_accounts">
+    <div class="card">
+      <h2>GL Accounts</h2>
+      <div class="form-row">
+        <div class="field">
+          <label>Department</label>
+          <select id="gl-dept-filter" onchange="loadGLAccounts()">
+            <option value="">All Departments</option>
+          </select>
+        </div>
+      </div>
+      <hr class="separator"/>
+      <h3 style="font-size:.95rem;font-weight:600;margin-bottom:12px">Add GL Account</h3>
+      <div class="form-row">
+        <div class="field">
+          <label>Department</label>
+          <select id="gl-dept"></select>
+        </div>
+        <div class="field">
+          <label>Account Number</label>
+          <input type="text" id="gl-acct-num" placeholder="e.g. 6100" style="width:160px"/>
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <input type="text" id="gl-desc" placeholder="Salaries &amp; Wages" style="width:220px"/>
+        </div>
+        <button class="btn btn-primary" onclick="createGLAccount()">+ Add</button>
+      </div>
+      <table id="gl-table">
+        <thead><tr><th>ID</th><th>Department</th><th>Account #</th><th>Description</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===================== CHARGE DEFINITIONS ===================== -->
+  <div class="page" id="page-charge_definitions">
+    <div class="split">
+      <div class="card">
+        <h2>Dept Charge Definitions</h2>
+        <div class="form-row">
+          <div class="field">
+            <label>Department</label>
+            <select id="cd-dept-filter" onchange="loadChargeDefs()">
+              <option value="">All</option>
+            </select>
+          </div>
+        </div>
+        <hr class="separator"/>
+        <h3 style="font-size:.95rem;font-weight:600;margin-bottom:12px">New Definition</h3>
+        <div class="form-row">
+          <div class="field">
+            <label>Department</label>
+            <select id="cd-dept"></select>
+          </div>
+          <div class="field">
+            <label>Name</label>
+            <input type="text" id="cd-name" placeholder="e.g. Standard Split" style="width:200px"/>
+          </div>
+          <button class="btn btn-primary" onclick="createChargeDef()">+ Add</button>
+        </div>
+        <table id="cd-table">
+          <thead><tr><th>ID</th><th>Dept</th><th>Name</th><th>Total%</th><th>Status</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card" id="cd-lines-panel">
+        <h2 id="cd-lines-title">Select a definition to manage lines</h2>
+        <div id="cd-lines-form" style="display:none">
+          <div class="form-row">
+            <div class="field">
+              <label>GL Account</label>
+              <select id="cdl-gl"></select>
+            </div>
+            <div class="field">
+              <label>Percent</label>
+              <input type="number" id="cdl-pct" placeholder="e.g. 60" min="0" max="100" step="0.01"/>
+            </div>
+            <button class="btn btn-primary" onclick="createCDLine()">+ Add Line</button>
+          </div>
+        </div>
+        <table id="cdl-table">
+          <thead><tr><th>GL Account</th><th>Percent</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div style="margin-top:12px;font-size:.85rem;color:var(--muted)" id="cdl-total-row"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== FUNDING DEFINITIONS ===================== -->
+  <div class="page" id="page-funding_definitions">
+    <div class="split">
+      <div class="card">
+        <h2>Project Funding Definitions</h2>
+        <div class="form-row">
+          <div class="field">
+            <label>Name</label>
+            <input type="text" id="pfd-name" placeholder="e.g. 50/50 Split" style="width:240px"/>
+          </div>
+          <button class="btn btn-primary" onclick="createPFD()">+ Add</button>
+        </div>
+        <table id="pfd-table">
+          <thead><tr><th>ID</th><th>Name</th><th>Total%</th><th>Status</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card" id="pfd-lines-panel">
+        <h2 id="pfd-lines-title">Select a funding definition to manage lines</h2>
+        <div id="pfd-lines-form" style="display:none">
+          <div class="form-row">
+            <div class="field">
+              <label>Department</label>
+              <select id="pfdl-dept" onchange="loadCDsForPFDLine()"></select>
+            </div>
+            <div class="field">
+              <label>Charge Definition</label>
+              <select id="pfdl-cd"></select>
+            </div>
+            <div class="field">
+              <label>Percent</label>
+              <input type="number" id="pfdl-pct" placeholder="e.g. 50" min="0" max="100" step="0.01"/>
+            </div>
+            <button class="btn btn-primary" onclick="createPFDLine()">+ Add</button>
+          </div>
+        </div>
+        <table id="pfdl-table">
+          <thead><tr><th>Department</th><th>Charge Def</th><th>Percent</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div style="margin-top:12px;font-size:.85rem;color:var(--muted)" id="pfdl-total-row"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== PROJECTS ===================== -->
+  <div class="page" id="page-projects">
+    <div class="card">
+      <h2>Projects</h2>
+      <div class="form-row">
+        <div class="field">
+          <label>Project Name</label>
+          <input type="text" id="proj-name" placeholder="e.g. Bridge Renovation" style="width:260px"/>
+        </div>
+        <div class="field">
+          <label>Funding Definition</label>
+          <select id="proj-pfd">
+            <option value="">— None —</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="createProject()">+ Add Project</button>
+      </div>
+      <table id="proj-table">
+        <thead><tr><th>ID</th><th>Name</th><th>Funding Definition</th><th>FD Status</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===================== CHARGES ===================== -->
+  <div class="page" id="page-charges">
+    <div class="card">
+      <h2>Post a Charge</h2>
+      <div class="form-row">
+        <div class="field">
+          <label>Project</label>
+          <select id="charge-proj" onchange="updateChargeProjectStatus()">
+            <option value="">Select project…</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Amount ($)</label>
+          <input type="number" id="charge-amount" placeholder="1000.00" min="0" step="0.01" style="width:160px"/>
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <input type="text" id="charge-desc" placeholder="Invoice #X" style="width:240px"/>
+        </div>
+        <button class="btn btn-primary" onclick="createCharge()">Post Charge</button>
+      </div>
+      <div id="charge-proj-warn" style="font-size:.82rem;color:var(--danger);margin-bottom:8px;display:none">
+        ⚠ This project's funding definition is not active (does not total 100%). You cannot post charges to it.
+      </div>
+    </div>
+    <div class="card">
+      <div class="form-row" style="margin-bottom:0">
+        <div class="field">
+          <label>Filter by Project</label>
+          <select id="charge-filter-proj" onchange="loadCharges()">
+            <option value="">All Projects</option>
+          </select>
+        </div>
+      </div>
+      <hr class="separator"/>
+      <table id="charge-table">
+        <thead><tr><th>ID</th><th>Project</th><th>Description</th><th>Amount</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- =========== MODAL — Edit Department =========== -->
+<div class="modal-overlay" id="modal-edit-dept">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('modal-edit-dept')">&times;</button>
+    <h3>Edit Department</h3>
+    <input type="hidden" id="edit-dept-id"/>
+    <div class="field" style="margin-bottom:16px">
+      <label>Name</label>
+      <input type="text" id="edit-dept-name" style="width:100%"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-dept')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDept()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========== MODAL — Edit GL Account =========== -->
+<div class="modal-overlay" id="modal-edit-gl">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('modal-edit-gl')">&times;</button>
+    <h3>Edit GL Account</h3>
+    <input type="hidden" id="edit-gl-id"/>
+    <div class="field" style="margin-bottom:12px">
+      <label>Account Number</label>
+      <input type="text" id="edit-gl-acct" style="width:100%"/>
+    </div>
+    <div class="field" style="margin-bottom:16px">
+      <label>Description</label>
+      <input type="text" id="edit-gl-desc-edit" style="width:100%"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-gl')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveGL()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========== MODAL — Edit Project =========== -->
+<div class="modal-overlay" id="modal-edit-proj">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('modal-edit-proj')">&times;</button>
+    <h3>Edit Project</h3>
+    <input type="hidden" id="edit-proj-id"/>
+    <div class="field" style="margin-bottom:12px">
+      <label>Name</label>
+      <input type="text" id="edit-proj-name" style="width:100%"/>
+    </div>
+    <div class="field" style="margin-bottom:16px">
+      <label>Funding Definition</label>
+      <select id="edit-proj-pfd" style="width:100%">
+        <option value="">— None —</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-proj')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProject()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========== MODAL — Charge Allocations =========== -->
+<div class="modal-overlay" id="modal-allocations">
+  <div class="modal" style="max-width:680px">
+    <button class="close-btn" onclick="closeModal('modal-allocations')">&times;</button>
+    <h3 id="alloc-modal-title">Allocations</h3>
+    <div id="alloc-modal-body"></div>
+  </div>
+</div>
+
+<!-- =========== MODAL — Edit Charge Def =========== -->
+<div class="modal-overlay" id="modal-edit-cd">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('modal-edit-cd')">&times;</button>
+    <h3>Edit Charge Definition</h3>
+    <input type="hidden" id="edit-cd-id"/>
+    <div class="field" style="margin-bottom:16px">
+      <label>Name</label>
+      <input type="text" id="edit-cd-name" style="width:100%"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-cd')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveChargeDef()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========== MODAL — Edit PFD =========== -->
+<div class="modal-overlay" id="modal-edit-pfd">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('modal-edit-pfd')">&times;</button>
+    <h3>Edit Funding Definition</h3>
+    <input type="hidden" id="edit-pfd-id"/>
+    <div class="field" style="margin-bottom:16px">
+      <label>Name</label>
+      <input type="text" id="edit-pfd-name" style="width:100%"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-pfd')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePFD()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// State
+// ============================================================
+let currentPage = 'departments';
+let selectedCDId = null;
+let selectedPFDId = null;
+let allDepts = [];
+let allPFDs = [];
+
+// ============================================================
+// Utilities
+// ============================================================
+async function api(method, path, body) {
+  const opts = { method, headers: {'Content-Type': 'application/json'} };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch('/api' + path, opts);
+  if (!r.ok) {
+    const msg = await r.text().catch(() => r.statusText);
+    throw new Error(msg || r.statusText);
+  }
+  if (r.status === 204) return null;
+  return r.json();
+}
+
+function toast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (isError ? ' error' : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.className = '', 3500);
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach((b,i) => {
+    const pages = ['departments','gl_accounts','charge_definitions','funding_definitions','projects','charges'];
+    b.classList.toggle('active', pages[i] === name);
+  });
+  const el = document.getElementById('page-' + name);
+  if (el) el.classList.add('active');
+  currentPage = name;
+  refreshCurrentPage();
+}
+
+function refreshCurrentPage() {
+  const loaders = {
+    departments: loadDepts,
+    gl_accounts: loadGLAccounts,
+    charge_definitions: loadChargeDefs,
+    funding_definitions: loadPFDs,
+    projects: loadProjects,
+    charges: loadCharges,
+  };
+  if (loaders[currentPage]) loaders[currentPage]();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function setOptions(selectId, items, valueKey, labelKey, blankLabel) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = blankLabel ? `<option value="">${blankLabel}</option>` : '';
+  items.forEach(i => {
+    const opt = document.createElement('option');
+    opt.value = i[valueKey];
+    opt.textContent = i[labelKey];
+    sel.appendChild(opt);
+  });
+  sel.value = cur;
+}
+
+function money(n) { return '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:4}); }
+function pct(n) { return Number(n).toFixed(2) + '%'; }
+
+function activeBadge(isActive, total) {
+  if (isActive) return '<span class="badge badge-green">Active</span>';
+  const t = Number(total || 0);
+  if (t > 100) return `<span class="badge badge-red">Over (${t.toFixed(2)}%)</span>`;
+  return `<span class="badge badge-yellow">Incomplete (${t.toFixed(2)}%)</span>`;
+}
+
+// ============================================================
+// Load global data
+// ============================================================
+async function loadAllDepts() {
+  allDepts = await api('GET', '/departments');
+  const deptSelects = ['gl-dept-filter','gl-dept','cd-dept-filter','cd-dept','pfdl-dept'];
+  deptSelects.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const blank = id.endsWith('-filter') ? '— All —' : null;
+    setOptions(id, allDepts, 'id', 'name', blank);
+  });
+}
+
+async function loadAllPFDs() {
+  allPFDs = await api('GET', '/project_funding_definitions');
+  ['proj-pfd','charge-filter-proj','edit-proj-pfd'].forEach(id => {
+    setOptions(id, allPFDs, 'id', 'name', '— None —');
+  });
+  setOptions('charge-filter-proj', allPFDs, 'id', 'name', 'All Projects');
+}
+
+// ============================================================
+// Departments
+// ============================================================
+async function loadDepts() { // TODO page transitions, master/detail, scrolling, lookups
+  try {
+    const depts = await api('GET', '/departments');
+    allDepts = depts;
+    const tbody = document.querySelector('#dept-table tbody');
+    tbody.innerHTML = depts.length ? '' : `<tr><td colspan="3" class="empty">No departments yet.</td></tr>`;
+    depts.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${d.id}</td>
+        <td>${esc(d.name)}</td>
+        <td style="text-align:right">
+          <button class="btn btn-ghost btn-sm" onclick="openEditDept(${d.id},'${esc(d.name)}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteDept(${d.id})">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    await loadAllDepts();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function createDept() {
+  const name = document.getElementById('dept-name').value.trim();
+  if (!name) { toast('Enter a department name', true); return; }
+  try {
+    await api('POST', '/departments', {name});
+    document.getElementById('dept-name').value = '';
+    toast('Department created');
+    loadDepts();
+  } catch(e) { toast(e.message, true); }
+}
+
+function openEditDept(id, name) {
+  document.getElementById('edit-dept-id').value = id;
+  document.getElementById('edit-dept-name').value = name;
+  openModal('modal-edit-dept');
+}
+
+async function saveDept() {
+  const id = document.getElementById('edit-dept-id').value;
+  const name = document.getElementById('edit-dept-name').value.trim();
+  if (!name) { toast('Name required', true); return; }
+  try {
+    await api('PUT', '/departments/' + id, {name});
+    closeModal('modal-edit-dept');
+    toast('Department updated');
+    loadDepts();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function deleteDept(id) {
+  if (!confirm('Delete this department and all its GL accounts and charge definitions?')) return;
+  try {
+    await api('DELETE', '/departments/' + id);
+    toast('Department deleted');
+    loadDepts();
+  } catch(e) { toast(e.message, true); }
+}
+
+// ============================================================
+// GL Accounts
+// ============================================================
+async function loadGLAccounts() {
+  try {
+    await loadAllDepts();
+    const deptId = document.getElementById('gl-dept-filter').value;
+    const path = '/gl_accounts' + (deptId ? '?department_id=' + deptId : '');
+    const accts = await api('GET', path);
+    const tbody = document.querySelector('#gl-table tbody');
+    tbody.innerHTML = accts.length ? '' : `<tr><td colspan="5" class="empty">No GL accounts found.</td></tr>`;
+    accts.forEach(a => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${a.id}</td>
+        <td>${esc(a.department_name)}</td>
+        <td>${esc(a.account_number)}</td>
+        <td>${esc(a.description||'')}</td>
+        <td style="text-align:right">
+          <button class="btn btn-ghost btn-sm" onclick="openEditGL(${a.id},'${esc(a.account_number)}','${esc(a.description||'')}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteGL(${a.id})">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  } catch(e) { toast(e.message, true); }
+}
+
+async function createGLAccount() {
+  const deptId = document.getElementById('gl-dept').value;
+  const acctNum = document.getElementById('gl-acct-num').value.trim();
+  const desc = document.getElementById('gl-desc').value.trim();
+  if (!deptId || !acctNum) { toast('Department and Account Number are required', true); return; }
+  try {
+    await api('POST', '/gl_accounts', {department_id: parseInt(deptId), account_number: acctNum, description: desc});
+    document.getElementById('gl-acct-num').value = '';
+    document.getElementById('gl-desc').value = '';
+    toast('GL Account created');
+    loadGLAccounts();
+  } catch(e) { toast(e.message, true); }
+}
+
+function openEditGL(id, acct, desc) {
+  document.getElementById('edit-gl-id').value = id;
+  document.getElementById('edit-gl-acct').value = acct;
+  document.getElementById('edit-gl-desc-edit').value = desc;
+  openModal('modal-edit-gl');
+}
+
+async function saveGL() {
+  const id = document.getElementById('edit-gl-id').value;
+  const acct = document.getElementById('edit-gl-acct').value.trim();
+  const desc = document.getElementById('edit-gl-desc-edit').value.trim();
+  if (!acct) { toast('Account number required', true); return; }
+  try {
+    await api('PUT', '/gl_accounts/' + id, {account_number: acct, description: desc});
+    closeModal('modal-edit-gl');
+    toast('GL Account updated');
+    loadGLAccounts();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function deleteGL(id) {
+  if (!confirm('Delete this GL Account?')) return;
+  try {
+    await api('DELETE', '/gl_accounts/' + id);
+    toast('GL Account deleted');
+    loadGLAccounts();
+  } catch(e) { toast(e.message, true); }
+}
+
+// ============================================================
+// Dept Charge Definitions
+// ============================================================
+async function loadChargeDefs() {
+  try {
+    await loadAllDepts();
+    const deptId = document.getElementById('cd-dept-filter').value;
+    const path = '/dept_charge_definitions' + (deptId ? '?department_id=' + deptId : '');
+    const cds = await api('GET', path);
+    const tbody = document.querySelector('#cd-table tbody');
+    tbody.innerHTML = cds.length ? '' : `<tr><td colspan="6" class="empty">No definitions.</td></tr>`;
+    cds.forEach(cd => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${cd.id}</td>
+        <td>${esc(cd.department_name)}</td>
+        <td>${esc(cd.name)}</td>
+        <td>${pct(cd.total_percent)}</td>
+        <td>${activeBadge(cd.is_active, cd.total_percent)}</td>
+        <td style="text-align:right">
+          <button class="btn btn-ghost btn-sm" onclick="selectCD(${cd.id},'${esc(cd.name)}',${cd.department_id})">Lines</button>
+          <button class="btn btn-ghost btn-sm" onclick="openEditCD(${cd.id},'${esc(cd.name)}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteCD(${cd.id})">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  } catch(e) { toast(e.message, true); }
+}
+
+async function createChargeDef() {
+  const deptId = document.getElementById('cd-dept').value;
+  const name = document.getElementById('cd-name').value.trim();
+  if (!deptId || !name) { toast('Department and Name are required', true); return; }
+  try {
+    await api('POST', '/dept_charge_definitions', {department_id: parseInt(deptId), name});
+    document.getElementById('cd-name').value = '';
+    toast('Charge Definition created');
+    loadChargeDefs();
+  } catch(e) { toast(e.message, true); }
+}
+
+function openEditCD(id, name) {
+  document.getElementById('edit-cd-id').value = id;
+  document.getElementById('edit-cd-name').value = name;
+  openModal('modal-edit-cd');
+}
+
+async function saveChargeDef() {
+  const id = document.getElementById('edit-cd-id').value;
+  const name = document.getElementById('edit-cd-name').value.trim();
+  if (!name) { toast('Name required', true); return; }
+  try {
+    await api('PUT', '/dept_charge_definitions/' + id, {name});
+    closeModal('modal-edit-cd');
+    toast('Charge Definition updated');
+    loadChargeDefs();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function deleteCD(id) {
+  if (!confirm('Delete this Charge Definition?')) return;
+  try {
+    await api('DELETE', '/dept_charge_definitions/' + id);
+    if (selectedCDId === id) { selectedCDId = null; clearCDLinesPanel(); }
+    toast('Charge Definition deleted');
+    loadChargeDefs();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function selectCD(id, name, deptId) {
+  selectedCDId = id;
+  document.getElementById('cd-lines-title').textContent = `Lines for: ${name}`;
+  document.getElementById('cd-lines-form').style.display = '';
+  // Load GL accounts for this department only
+  const gls = await api('GET', '/gl_accounts?department_id=' + deptId);
+  setOptions('cdl-gl', gls, 'id', 'account_number', null);
+  loadCDLines();
+}
+
+function clearCDLinesPanel() {
+  document.getElementById('cd-lines-title').textContent = 'Select a definition to manage lines';
+  document.getElementById('cd-lines-form').style.display = 'none';
+  document.querySelector('#cdl-table tbody').innerHTML = '';
+  document.getElementById('cdl-total-row').textContent = '';
+}
+
+async function loadCDLines() {
+  if (!selectedCDId) return;
+  try {
+    const lines = await api('GET', '/dept_charge_definitions/' + selectedCDId + '/lines');
+    const tbody = document.querySelector('#cdl-table tbody');
+    tbody.innerHTML = lines.length ? '' : `<tr><td colspan="3" class="empty">No lines.</td></tr>`;
+    let total = 0;
+    lines.forEach(l => {
+      total += l.percent;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${esc(l.gl_account_number)}</td>
+        <td>${pct(l.percent)}</td>
+        <td style="text-align:right">
+          <button class="btn btn-danger btn-sm" onclick="deleteCDLine(${l.id})">Remove</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    const totalEl = document.getElementById('cdl-total-row');
+    totalEl.innerHTML = `Total: <strong>${pct(total)}</strong> ${total >= 99.9999 && total <= 100.0001 ? '✅ Active' : '⚠ Must equal 100%'}`;
+  } catch(e) { toast(e.message, true); }
+}
+
+async function createCDLine() {
+  if (!selectedCDId) return;
+  const glId = document.getElementById('cdl-gl').value;
+  const pctVal = document.getElementById('cdl-pct').value;
+  if (!glId || !pctVal) { toast('GL Account and Percent required', true); return; }
+  try {
+    await api('POST', '/dept_charge_definitions/' + selectedCDId + '/lines', {
+      gl_account_id: parseInt(glId), percent: parseFloat(pctVal)
+    });
+    document.getElementById('cdl-pct').value = '';
+    toast('Line added');
+    loadCDLines();
+    loadChargeDefs();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function deleteCDLine(id) {
+  if (!confirm('Remove this line?')) return;
+  try {
+    await api('DELETE', '/dept_charge_def_lines/' + id);
+    toast('Line removed');
+    loadCDLines();
+    loadChargeDefs();
+  } catch(e) { toast(e.message, true); }
+}
+
+// ============================================================
+// Project Funding Definitions
+// ============================================================
+async function loadPFDs() {
+  try {
+    await loadAllDepts();
+    await loadAllPFDs();
+    const pfds = await api('GET', '/project_funding_definitions');
+    const tbody = document.querySelector('#pfd-table tbody');
+    tbody.innerHTML = pfds.length ? '' : `<tr><td colspan="5" class="empty">No funding definitions.</td></tr>`;
+    pfds.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.id}</td>
+        <td>${esc(p.name)}</td>
+        <td>${pct(p.total_percent)}</td>
+        <td>${activeBadge(p.is_active, p.total_percent)}</td>
+        <td style="text-align:right">
+          <button class="btn btn-ghost btn-sm" onclick="selectPFD(${p.id},'${esc(p.name)}')">Lines</button>
+          <button class="btn btn-ghost btn-sm" onclick="openEditPFD(${p.id},'${esc(p.name)}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deletePFD(${p.id})">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  } catch(e) { toast(e.message, true); }
+}
+
+async function createPFD() {
+  const name = document.getElementById('pfd-name').value.trim();
+  if (!name) { toast('Name required', true); return; }
+  try {
+    await api('POST', '/project_funding_definitions', {name});
+    document.getElementById('pfd-name').value = '';
+    toast('Funding Definition created');
+    loadPFDs();
+  } catch(e) { toast(e.message, true); }
+}
+
+function openEditPFD(id, name) {
+  document.getElementById('edit-pfd-id').value = id;
+  document.getElementById('edit-pfd-name').value = name;
+  openModal('modal-edit-pfd');
+}
+
+async function savePFD() {
+  const id = document.getElementById('edit-pfd-id').value;
+  const name = document.getElementById('edit-pfd-name').value.trim();
+  if (!name) { toast('Name required', true); return; }
+  try {
+    await api('PUT', '/project_funding_definitions/' + id, {name});
+    closeModal('modal-edit-pfd');
+    toast('Funding Definition updated');
+    loadPFDs();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function deletePFD(id) {
+  if (!confirm('Delete this Funding Definition?')) return;
+  try {
+    await api('DELETE', '/project_funding_definitions/' + id);
+    if (selectedPFDId === id) { selectedPFDId = null; clearPFDLinesPanel(); }
+    toast('Funding Definition deleted');
+    loadPFDs();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function selectPFD(id, name) {
+  selectedPFDId = id;
+  document.getElementById('pfd-lines-title').textContent = `Lines for: ${name}`;
+  document.getElementById('pfd-lines-form').style.display = '';
+  // Populate dept dropdown for adding lines
+  setOptions('pfdl-dept', allDepts, 'id', 'name', null);
+  await loadCDsForPFDLine();
+  loadPFDLines();
+}
+
+function clearPFDLinesPanel() {
+  document.getElementById('pfd-lines-title').textContent = 'Select a funding definition to manage lines';
+  document.getElementById('pfd-lines-form').style.display = 'none';
+  document.querySelector('#pfdl-table tbody').innerHTML = '';
+  document.getElementById('pfdl-total-row').textContent = '';
+}
+
+async function loadCDsForPFDLine() {
+  const deptId = document.getElementById('pfdl-dept').value;
+  if (!deptId) return;
+  try {
+    const cds = await api('GET', '/dept_charge_definitions?department_id=' + deptId);
+    setOptions('pfdl-cd', cds, 'id', 'name', null);
+  } catch(e) { toast(e.message, true); }
+}
+
+async function loadPFDLines() {
+  if (!selectedPFDId) return;
+  try {
+    const lines = await api('GET', '/project_funding_definitions/' + selectedPFDId + '/lines');
+    const tbody = document.querySelector('#pfdl-table tbody');
+    tbody.innerHTML = lines.length ? '' : `<tr><td colspan="4" class="empty">No lines.</td></tr>`;
+    let total = 0;
+    lines.forEach(l => {
+      total += l.percent;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${esc(l.department_name)}</td>
+        <td>${esc(l.charge_definition_name)}</td>
+        <td>${pct(l.percent)}</td>
+        <td style="text-align:right">
+          <button class="btn btn-danger btn-sm" onclick="deletePFDLine(${l.id})">Remove</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    const totalEl = document.getElementById('pfdl-total-row');
+    totalEl.innerHTML = `Total: <strong>${pct(total)}</strong> ${total >= 99.9999 && total <= 100.0001 ? '✅ Active' : '⚠ Must equal 100%'}`;
+  } catch(e) { toast(e.message, true); }
+}
+
+async function createPFDLine() {
+  if (!selectedPFDId) return;
+  const deptId = document.getElementById('pfdl-dept').value;
+  const cdId = document.getElementById('pfdl-cd').value;
+  const pctVal = document.getElementById('pfdl-pct').value;
+  if (!deptId || !cdId || !pctVal) { toast('Department, Charge Definition, and Percent required', true); return; }
+  try {
+    await api('POST', '/project_funding_definitions/' + selectedPFDId + '/lines', {
+      department_id: parseInt(deptId), charge_definition_id: parseInt(cdId), percent: parseFloat(pctVal)
+    });
+    document.getElementById('pfdl-pct').value = '';
+    toast('Line added');
+    loadPFDLines();
+    loadPFDs();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function deletePFDLine(id) {
+  if (!confirm('Remove this line?')) return;
+  try {
+    await api('DELETE', '/project_funding_lines/' + id);
+    toast('Line removed');
+    loadPFDLines();
+    loadPFDs();
+  } catch(e) { toast(e.message, true); }
+}
+
+// ============================================================
+// Projects
+// ============================================================
+async function loadProjects() {
+  try {
+    await loadAllPFDs();
+    const projs = await api('GET', '/projects');
+    setOptions('proj-pfd', allPFDs, 'id', 'name', '— None —');
+    setOptions('edit-proj-pfd', allPFDs, 'id', 'name', '— None —');
+    setOptions('charge-proj', projs, 'id', 'name', 'Select project…');
+    setOptions('charge-filter-proj', projs, 'id', 'name', 'All Projects');
+    const tbody = document.querySelector('#proj-table tbody');
+    tbody.innerHTML = projs.length ? '' : `<tr><td colspan="5" class="empty">No projects.</td></tr>`;
+    projs.forEach(p => {
+      const fdStatus = p.funding_definition_id
+        ? activeBadge(p.funding_definition_active, null)
+        : '<span class="badge badge-red">No FD</span>';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.id}</td>
+        <td>${esc(p.name)}</td>
+        <td>${esc(p.funding_definition_name || '—')}</td>
+        <td>${fdStatus}</td>
+        <td style="text-align:right">
+          <button class="btn btn-ghost btn-sm" onclick="openEditProj(${p.id},'${esc(p.name)}',${p.funding_definition_id||''})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteProject(${p.id})">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  } catch(e) { toast(e.message, true); }
+}
+
+async function createProject() {
+  const name = document.getElementById('proj-name').value.trim();
+  const pfdId = document.getElementById('proj-pfd').value || null;
+  if (!name) { toast('Project name required', true); return; }
+  try {
+    await api('POST', '/projects', {name, funding_definition_id: pfdId ? parseInt(pfdId) : null});
+    document.getElementById('proj-name').value = '';
+    toast('Project created');
+    loadProjects();
+  } catch(e) { toast(e.message, true); }
+}
+
+function openEditProj(id, name, pfdId) {
+  document.getElementById('edit-proj-id').value = id;
+  document.getElementById('edit-proj-name').value = name;
+  // populate select then set value
+  setOptions('edit-proj-pfd', allPFDs, 'id', 'name', '— None —');
+  document.getElementById('edit-proj-pfd').value = pfdId || '';
+  openModal('modal-edit-proj');
+}
+
+async function saveProject() {
+  const id = document.getElementById('edit-proj-id').value;
+  const name = document.getElementById('edit-proj-name').value.trim();
+  const pfdId = document.getElementById('edit-proj-pfd').value || null;
+  if (!name) { toast('Name required', true); return; }
+  try {
+    await api('PUT', '/projects/' + id, {name, funding_definition_id: pfdId ? parseInt(pfdId) : null});
+    closeModal('modal-edit-proj');
+    toast('Project updated');
+    loadProjects();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function deleteProject(id) {
+  if (!confirm('Delete this project and all its charges?')) return;
+  try {
+    await api('DELETE', '/projects/' + id);
+    toast('Project deleted');
+    loadProjects();
+  } catch(e) { toast(e.message, true); }
+}
+
+// ============================================================
+// Charges
+// ============================================================
+async function loadCharges() {
+  try {
+    const projs = await api('GET', '/projects');
+    setOptions('charge-proj', projs, 'id', 'name', 'Select project…');
+    setOptions('charge-filter-proj', projs, 'id', 'name', 'All Projects');
+    const filterId = document.getElementById('charge-filter-proj').value;
+    const path = '/charges' + (filterId ? '?project_id=' + filterId : '');
+    const charges = await api('GET', path);
+    const tbody = document.querySelector('#charge-table tbody');
+    tbody.innerHTML = charges.length ? '' : `<tr><td colspan="5" class="empty">No charges.</td></tr>`;
+    charges.forEach(c => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${c.id}</td>
+        <td>${esc(c.project_name)}</td>
+        <td>${esc(c.description||'')}</td>
+        <td>${money(c.amount)}</td>
+        <td style="text-align:right">
+          <button class="btn btn-ghost btn-sm" onclick="viewAllocations(${c.id},'${esc(c.description||'')}')">View Allocations</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteCharge(${c.id})">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  } catch(e) { toast(e.message, true); }
+}
+
+async function updateChargeProjectStatus() {
+  const projId = document.getElementById('charge-proj').value;
+  const warn = document.getElementById('charge-proj-warn');
+  if (!projId) { warn.style.display = 'none'; return; }
+  try {
+    const proj = await api('GET', '/projects/' + projId);
+    warn.style.display = (!proj.funding_definition_active) ? '' : 'none';
+  } catch(e) {}
+}
+
+async function createCharge() {
+  const projId = document.getElementById('charge-proj').value;
+  const amount = document.getElementById('charge-amount').value;
+  const desc = document.getElementById('charge-desc').value.trim();
+  if (!projId || !amount) { toast('Project and Amount required', true); return; }
+  try {
+    const charge = await api('POST', '/charges', {
+      project_id: parseInt(projId), amount: parseFloat(amount), description: desc
+    });
+    document.getElementById('charge-amount').value = '';
+    document.getElementById('charge-desc').value = '';
+    toast(`Charge posted & allocated — $${charge.amount}`);
+    loadCharges();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function deleteCharge(id) {
+  if (!confirm('Delete this charge and all its allocations?')) return;
+  try {
+    await api('DELETE', '/charges/' + id);
+    toast('Charge deleted');
+    loadCharges();
+  } catch(e) { toast(e.message, true); }
+}
+
+async function viewAllocations(chargeId, desc) {
+  try {
+    const allocs = await api('GET', '/charges/' + chargeId + '/allocations');
+    const charge = await api('GET', '/charges/' + chargeId);
+    document.getElementById('alloc-modal-title').textContent = `Allocations — ${desc || 'Charge #'+chargeId} (${money(charge.amount)})`;
+    const body = document.getElementById('alloc-modal-body');
+    if (!allocs.length) { body.innerHTML = '<p style="color:var(--muted)">No allocations found.</p>'; openModal('modal-allocations'); return; }
+    body.innerHTML = allocs.map(da => `
+      <div class="alloc-dept">
+        <div class="alloc-dept-header">
+          <span>${esc(da.department_name)}</span>
+          <span>${pct(da.percent)} → ${money(da.amount)}</span>
+        </div>
+        ${da.gl_allocations.map(g => `
+          <div class="alloc-gl">
+            <span>${esc(g.gl_account_number)} ${esc(g.gl_account_description || '')}</span>
+            <span>${pct(g.percent)} → ${money(g.amount)}</span>
+          </div>`).join('')}
+      </div>`).join('');
+    openModal('modal-allocations');
+  } catch(e) { toast(e.message, true); }
+}
+
+// ============================================================
+// XSS-safe escape
+// ============================================================
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ============================================================
+// Init
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  loadDepts();
+});
+</script>
+</body>
+</html>
