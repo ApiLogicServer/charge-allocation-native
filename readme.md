@@ -47,6 +47,12 @@ Total the charges into the Project and GL Account.
 
 &nbsp;
 
+## Implementation Summary
+
+![impl summary](docs/images/impl-summary.png)
+
+&nbsp;
+
 ## Compare to GenAI-Logic Version
 
 Claude Sonnet 4.6 quick guess as native vs. GenAI-Logic:
