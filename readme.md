@@ -45,3 +45,17 @@ Charges can be placed by contractors.  They may supply only a minimal project de
 Total the charges into the Project and GL Account.
 ```
 
+&nbsp;
+
+## Compare to GenAI-Logic Version
+
+Claude Sonnet 4.6 quick guess as native vs. GenAI-Logic:
+
+![opinion](docs/images/native-ai-assessment.png)
+
+
+See how Claude Sonnet 4.6 compares this 'native' version to the reference GenAI-Logic implementation:
+
+* [comparison](./docs/comparison_naive_vs_als.md)
+* [exec summary](./docs/manager_3x5.md)
+
